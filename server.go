@@ -11,14 +11,17 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type Server struct {
 	listener net.Listener
 	quit chan struct{}
 	wg sync.WaitGroup
-	sm chan struct{}	// semaphore to restrict the max number of connections that server can handle at the same time
+	sm chan struct{}	// semaphore to restrict the max number of requests that server can handle at the same time
 }
+
+const responseTime = 10 // time in seconds needed to respond to one request
 
 func newServer(port string) *Server {
 	fmt.Println("Starting new server...")
@@ -31,7 +34,7 @@ func newServer(port string) *Server {
 	}
 	s.listener = l
 
-	fmt.Println("Please enter the max number of connections that server can handle at the same time:")
+	fmt.Println("Please enter the max number of requests that server can handle at the same time:")
 	reader := bufio.NewReader(os.Stdin)
 	temp, err := reader.ReadString('\n')
 	if err != nil {
@@ -41,6 +44,9 @@ func newServer(port string) *Server {
 	n, err := strconv.Atoi(strings.TrimSpace(temp))
 	if err != nil {
 		log.Fatalf("incorrect input: integer expected: %s", err)
+	}
+	if n < 1 {
+		log.Fatalf("incorrect input: the number cannot be less than 1.")
 	}
 	s.sm = make(chan struct{}, n)
 
@@ -95,6 +101,7 @@ func (s *Server) handleConnection(c net.Conn) {
 		return
 	}
 	result := strconv.Itoa(netDataNumber * netDataNumber) + "\n"
+	time.Sleep(time.Second * responseTime)
 
 	_, err = c.Write([]byte(result))
 	if err != nil {
@@ -110,8 +117,8 @@ func (s *Server) stop() {
 
 func main() {
 	s := newServer("8081")
-	fmt.Println("Server is running...")
-	fmt.Println("Press \"enter\" to shutdown the server at any time.")
+	fmt.Println("\nServer is running...")
+	fmt.Printf("Press \"enter\" to shutdown the server at any time.\n\n")
 
 	quit := make(chan os.Signal, 1)
 
@@ -122,11 +129,12 @@ func main() {
 	}()
 
 	// graceful shutdown caused by syscall
+	// Note: server may not be able to process all current request within shutdown timeout by syscall
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 
 	<-quit
 
-	fmt.Println("Server shutting down...")
+	fmt.Printf("Server shutting down...\n\n")
 	s.stop()
-	fmt.Println("Server stopped.")
+	fmt.Printf("\nServer stopped.\n")
 }
