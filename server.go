@@ -17,7 +17,7 @@ type Server struct {
 	listener net.Listener
 	quit chan struct{}
 	wg sync.WaitGroup
-	sm chan struct{}	// semaphore to restrict the max number of connections that can handled at the same time
+	sm chan struct{}	// semaphore to restrict the max number of connections that server can handle at the same time
 }
 
 func newServer(port string) *Server {
@@ -31,7 +31,7 @@ func newServer(port string) *Server {
 	}
 	s.listener = l
 
-	fmt.Println("Please enter the max number of connections that can handled at the same time:")
+	fmt.Println("Please enter the max number of connections that server can handle at the same time:")
 	reader := bufio.NewReader(os.Stdin)
 	temp, err := reader.ReadString('\n')
 	if err != nil {
