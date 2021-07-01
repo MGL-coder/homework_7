@@ -10,7 +10,7 @@ import (
 func main() {
 	// reading number from os.Stdin to send
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Please, type integer number to send to the server: ")
+	fmt.Println("Please, type integer number that will be send to the server: ")
 	textToSend, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Println(err)
@@ -24,12 +24,14 @@ func main() {
 		return
 	}
 
+	// sending text to the server
+	fmt.Fprintf(c, textToSend + "\n")
+
 	fmt.Printf("\nClient IP:\t%s\n", c.LocalAddr())
 	fmt.Printf("Server IP:\t%s\n\n", c.RemoteAddr())
 	fmt.Println("Waiting for response...")
 
 	// getting response
-	fmt.Fprintf(c, textToSend + "\n")
 	message, err := bufio.NewReader(c).ReadString('\n')
 	if err != nil {
 		fmt.Println(err)
