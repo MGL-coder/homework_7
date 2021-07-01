@@ -15,25 +15,30 @@ import (
 )
 
 type Server struct {
-	listener net.Listener
-	quit chan struct{}
-	wg sync.WaitGroup
-	sm chan struct{}	// semaphore to restrict the max number of requests that server can handle at the same time
+	listener net.Listener	// to listen to specific address
+	quit chan struct{}		// to signal the server to stop
+	wg sync.WaitGroup		// to wait completion of processing of all requests
+	sm chan struct{}		// semaphore to restrict the max number of requests that server can handle at the same time
 }
 
 const responseTime = 10 // time in seconds needed to respond to one request
 
 func newServer(port string) *Server {
 	fmt.Println("Starting new server...")
+
+	// initializing quit
 	s := &Server{
 		quit: make(chan struct{}),
 	}
+
+	// initializing listener to specific port
 	l, err := net.Listen("tcp4", ":" + port)
 	if err != nil {
 		log.Fatalf("network listen initialization error: %s", err)
 	}
 	s.listener = l
 
+	// initializing semaphore
 	fmt.Println("Please enter the max number of requests that server can handle at the same time:")
 	reader := bufio.NewReader(os.Stdin)
 	temp, err := reader.ReadString('\n')
@@ -50,6 +55,7 @@ func newServer(port string) *Server {
 	}
 	s.sm = make(chan struct{}, n)
 
+	// starting the server
 	s.wg.Add(1)
 	go s.serve()
 	return s
@@ -101,7 +107,7 @@ func (s *Server) handleConnection(c net.Conn) {
 		return
 	}
 	result := strconv.Itoa(netDataNumber * netDataNumber) + "\n"
-	time.Sleep(time.Second * responseTime)
+	time.Sleep(time.Second * responseTime)		// waiting...
 
 	_, err = c.Write([]byte(result))
 	if err != nil {
@@ -122,15 +128,15 @@ func main() {
 
 	quit := make(chan os.Signal, 1)
 
+	// graceful shutdown caused by syscall
+	// Note: server may not be able to process all current request within shutdown timeout by syscall
+	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
+
 	// graceful shutdown caused by input
 	go func() {
 		fmt.Scanln()
 		close(quit)
 	}()
-
-	// graceful shutdown caused by syscall
-	// Note: server may not be able to process all current request within shutdown timeout by syscall
-	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 
 	<-quit
 
